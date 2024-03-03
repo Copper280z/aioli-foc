@@ -1,6 +1,3 @@
-[submodule "firmware/lib/SimpleCanLib"]
-	path = firmware/lib/SimpleCanLib
-	url = https://Igitigit2/SimpleCanLib.git
 [submodule "firmware/lib/haptic-bldc-lib"]
 	path = firmware/lib/haptic-bldc-lib
 	url = https://github.com/VIPQualityPost/haptic-bldc-lib.git
