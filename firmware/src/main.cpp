@@ -3,25 +3,41 @@
 #include <SimpleFOC.h>
 #include <SimpleFOCDrivers.h>
 #include "encoders/MT6701/MagneticSensorMT6701SSI.h"
+#include "encoders/smoothing/SmoothingSensor.h"
+#include "stm32g431xx.h"
+#include "drv_reset.h"
+#include "aioli-board.h"
+#include <haptic.h>
 
-#include "./drv_reset.h"
-#include "./aioli-board.h"
 // #include "./can.cpp"
 
 // Motor specific parameters.
-#define POLEPAIRS 4
-#define RPHASE 1.4
-#define MOTORKV 1000
+#define POLEPAIRS 7
+#define RPHASE 5.3
+#define MOTORKV 140
 
 uint8_t useDFU = 0;
 uint8_t pendingFrame = 0;
 uint8_t sfocCmdStr;
 
+PIDController haptic_pid = PIDController(
+    2.0f,
+    0.0f,
+    0.05f,
+    10000.0f,
+    1.4f
+);
+
+
 // simpleFOC constructors
 BLDCDriver3PWM driver = BLDCDriver3PWM(U_PWM, V_PWM, W_PWM, U_EN, V_EN, W_EN);
 BLDCMotor motor = BLDCMotor(POLEPAIRS, RPHASE, MOTORKV);
 MagneticSensorMT6701SSI enc = MagneticSensorMT6701SSI(ENC_CS);
+// SmoothingSensor enc = SmoothingSensor(encoder, motor);
 Commander commander = Commander(SerialUSB);
+HapticInterface haptic = HapticInterface(&motor, &haptic_pid);
+
+
 
 uint8_t configureFOC(void);
 uint8_t configureCAN(void);
@@ -36,6 +52,10 @@ void setup()
 {
 	pinMode(USER_LED, OUTPUT);
 	pinMode(USER_BUTTON, INPUT);
+	
+	if (digitalRead(USER_BUTTON) == HIGH){
+		jump_to_bootloader();
+	}
 
 	SerialUSB.begin();
 
@@ -46,8 +66,9 @@ void setup()
 
 void loop()
 {
-	motor.loopFOC();
-	motor.move();
+	// motor.loopFOC();
+	// motor.move();
+	haptic.haptic_loop();
 	commander.run();
 
 	// if(pendingFrame){
@@ -78,39 +99,49 @@ uint8_t configureFOC(){
 	// Driver initialization.
 	driver.pwm_frequency = 32000;
 	driver.voltage_power_supply = 5;
-	driver.voltage_limit = 5;
+	driver.voltage_limit = 4.5;
 	driver.init();
 
 	// Motor PID parameters.
-	motor.PID_velocity.P = 0.2;
-	motor.PID_velocity.I = 3;
-	motor.PID_velocity.D = 0.002;
-	motor.PID_velocity.output_ramp = 100;
-	motor.LPF_velocity.Tf = 0.5;
-	motor.LPF_angle.Tf = 0; // try to avoid
+	// motor.PID_velocity.P = 0.2;
+	// motor.PID_velocity.I = 3;
+	// motor.PID_velocity.D = 0.002;
+	motor.voltage_limit = 2.2;
+	motor.PID_velocity.output_ramp = 1000;
+	motor.LPF_velocity.Tf = 0.5; // 1/(6.28*250);
+	motor.LPF_angle.Tf = 1/(100*_2PI); // try to avoid
 
 	// Motor initialization.
 	motor.voltage_sensor_align = 2;
 	motor.current_limit = 0.5;
 	motor.velocity_limit = 20;
-	motor.controller = MotionControlType::velocity;
-	motor.foc_modulation = FOCModulationType::SinePWM;
+	motor.controller = MotionControlType::torque;
+	motor.foc_modulation = FOCModulationType::SpaceVectorPWM;
 
-	// Monitor initialization
-	#ifdef HAS_MONITOR
-	motor.useMonitoring(Serial);
-	motor.monitor_start_char = 'M';
-	motor.monitor_end_char = 'M';
-	motor.monitor_downsample = 250;
-	#endif
+	motor.sensor_offset = 2.43;
+	motor.sensor_direction = Direction::CCW;
 
 	motor.linkSensor(&enc);
 	motor.linkDriver(&driver);
 	motor.init();
 
-	motor.target = 20;
+	motor.target = 0;
 
-	return motor.initFOC();
+	haptic.haptic_config->sfoc_voltage_control = true;
+	haptic.haptic_config->last_pos=1;
+	haptic.haptic_config->current_pos=1;
+	haptic.haptic_config->total_pos=42;
+	haptic.haptic_config->end_pos=41;
+	haptic.haptic_config->start_pos=1;
+	haptic.haptic_config->distance_space=10;
+	haptic.haptic_config->distance_pos = haptic.haptic_config->distance_space * _PI / 180;
+	
+
+	motor.initFOC();
+	haptic.init();
+
+
+	return 0;
 }
 
 uint8_t configureCAN(){
@@ -118,6 +149,5 @@ uint8_t configureCAN(){
 }
 
 uint8_t configureDFU(){
-	
 	return 1;
 }

@@ -13,9 +13,12 @@
  * is always 0xFF and DFU button on that one will actually 
  * trigger the firmware update.
 */
-
-#include "SimpleCan.h"
+#ifdef BLAHHHH
+#include "SimpleCAN.h"
 #include "aioli-board.h"
+#include "stm32g431xx.h"
+#include "stm32g4xx_hal.h"
+#include "stm32g4xx_hal_fdcan.h"
 
 #define SFOC_CMD 0x01
 
@@ -24,16 +27,17 @@ extern uint8_t sfocCmdStr;
 static void handleCanMessage(FDCAN_RxHeaderTypeDef rxHeader, uint8_t *rxData);
 static void configureCAN();
 
-SimpleCan can1(-1,-1);
 SimpleCan::RxHandler can1RxHandler(8, handleCanMessage);
+SimpleCan can1(-1,-1);
+
 
 FDCAN_TxHeaderTypeDef TxHeader;
 uint8_t TxData[8];
 
 static void configureCAN(){
-    	Serial.println(can1.init(CanSpeed::Mbit1) == HAL_OK ? "CAN: initialized." : "CAN: error when initializing.");
-        can1.activateNotification(&can1RxHandler);
-        Serial.println(can1.start() ==  HAL_OK ? "CAN: started." : "CAN: error starting.");
+    	Serial.println(can1.Init(CanSpeed::Mbit1) == HAL_OK ? "CAN: initialized." : "CAN: error when initializing.");
+        can1.ActivateNotification(&can1RxHandler);
+        Serial.println(can1.Start() ==  HAL_OK ? "CAN: started." : "CAN: error starting.");
 }
 
 int dlcToLength(uint32_t dlc)
@@ -94,3 +98,5 @@ void writeFrame(uint8_t writeData[])
 	Serial.println(can1.addMessageToTxFifoQ(&TxHeader, writeData) == HAL_OK ? "was ok." : "failed.");
     #endif 
 }
+
+#endif

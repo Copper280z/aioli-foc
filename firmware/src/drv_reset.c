@@ -1,6 +1,5 @@
-#include "stm32g4xx_hal_conf.h"
-#include "stm32g4xx_hal_rcc.h"
-
+#include "stm32g4xx_hal.h"
+#include "drv_reset.h"
 void perform_system_reset( void )
 {
 	__disable_irq();
