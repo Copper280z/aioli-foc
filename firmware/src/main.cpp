@@ -9,6 +9,8 @@
 #include "aioli-board.h"
 #include <haptic.h>
 
+#include "usbd_hid_composite_if.h"
+
 // #include "./can.cpp"
 
 // Motor specific parameters.
@@ -28,15 +30,13 @@ PIDController haptic_pid = PIDController(
     1.4f
 );
 
-
 // simpleFOC constructors
 BLDCDriver3PWM driver = BLDCDriver3PWM(U_PWM, V_PWM, W_PWM, U_EN, V_EN, W_EN);
 BLDCMotor motor = BLDCMotor(POLEPAIRS, RPHASE, MOTORKV);
 MagneticSensorMT6701SSI enc = MagneticSensorMT6701SSI(ENC_CS);
 // SmoothingSensor enc = SmoothingSensor(encoder, motor);
-Commander commander = Commander(SerialUSB);
+// Commander commander = Commander(SerialUSB);
 HapticInterface haptic = HapticInterface(&motor, &haptic_pid);
-
 
 
 uint8_t configureFOC(void);
@@ -45,7 +45,7 @@ uint8_t configureDFU(void);
 
 void doMotor(char *cmd)
 {
-	commander.motor(&motor, cmd);
+	// commander.motor(&motor, cmd);
 }
 
 void setup()
@@ -57,11 +57,15 @@ void setup()
 		jump_to_bootloader();
 	}
 
-	SerialUSB.begin();
+	// SerialUSB.begin();
 
-	Serial.println(configureFOC() == 1 ? "SFOC successfully init." : "SFOC failed to init.");
-	Serial.println(configureCAN() == 1 ? "CAN successfully init."  : "CAN failed to init.");
-	Serial.println(configureDFU() == 1 ? "DFU successfully init."  : "DFU failed to init.");
+	HID_Composite_Init(HID_Interface::HID_KEYBOARD);
+	configureFOC();
+	configureCAN();
+	configureDFU() ;
+	// Serial.println(configureFOC() == 1 ? "SFOC successfully init." : "SFOC failed to init.");
+	// Serial.println(configureCAN() == 1 ? "CAN successfully init."  : "CAN failed to init.");
+	// Serial.println(configureDFU() == 1 ? "DFU successfully init."  : "DFU failed to init.");
 }
 
 void loop()
@@ -69,7 +73,7 @@ void loop()
 	// motor.loopFOC();
 	// motor.move();
 	haptic.haptic_loop();
-	commander.run();
+	// commander.run();
 
 	// if(pendingFrame){
 	// 	commander.run((char*)sfocCmdStr);
@@ -82,11 +86,28 @@ void loop()
 	#ifdef HAS_MONITOR
 	motor.monitor();
 	#endif
+
+	// TODO: if serial command inits keyboard/mouse config then do this
+	// uint8_t HIDbuffer[8] = {0}; 
+	// if(haptic.haptic_config->attract_angle > haptic.haptic_config->current_pos * haptic.haptic_config->distance_pos && haptic.haptic_config->current_pos < haptic.haptic_config->end_pos){
+	// 	HIDbuffer[2] = KEY_VOLUMEUP;
+    // } else if (haptic.haptic_config->attract_angle < haptic.haptic_config->current_pos * haptic.haptic_config->distance_pos && haptic.haptic_config->current_pos > haptic.haptic_config->start_pos){
+	// 	HIDbuffer[2] = KEY_VOLUMEDOWN;
+    // }
+	// float angle_diff = haptic.haptic_config->attract_angle - haptic.haptic_config->last_attract_angle;
+	// if (angle_diff > haptic.haptic_config->distance_pos*haptic.haptic_config->current_pos) {
+	// 	// HID_Composite_keyboard_sendReport(HIDbuffer, 8);
+	// } else 	if (angle_diff < -haptic.haptic_config->distance_pos*haptic.haptic_config->current_pos) {
+	// 	HIDbuffer[2] = KEY_VOLUMEDOWN;
+	// 	// HID_Composite_keyboard_sendReport(HIDbuffer, 8);
+	// }
+	// HID_Composite_keyboard_sendReport(HIDbuffer, 8);
+
 }
 
 uint8_t configureFOC(){
-	commander.add('M', doMotor, "motor");
-	commander.verbose = VerboseMode::machine_readable;
+	// commander.add('M', doMotor, "motor");
+	// commander.verbose = VerboseMode::machine_readable;
 	
 	#ifdef SIMPLEFOC_STM_DEBUG
 	SimpleFOCDebug::enable(&Serial);
